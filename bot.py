@@ -20,7 +20,7 @@ def run_health_check():
     server.serve_forever()
 # ----------------------------------------------
 
-APP_TOKEN = "8584441878:AAF9VFcb7Sb2XyM_Wz9GkB_GQDgc2nBqHro"
+APP_TOKEN = "Hier API-Token einfügen"
 
 def translate_text(text, target_lang='de'):
     try:
@@ -81,4 +81,5 @@ if __name__ == '__main__':
     app = ApplicationBuilder().token(APP_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_messages))
     app.add_handler(CallbackQueryHandler(handle_buttons))
+
     app.run_polling()
