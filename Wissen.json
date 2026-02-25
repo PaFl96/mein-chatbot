@@ -1,0 +1,33 @@
+{
+  "einzahlung": {
+    "fragen": {
+      "Ich möchte Krypto einzahlen": "Um Kryptowährungen einzuzahlen, befolgen Sie diese Schritte:\n\nKrypto-Einzahlung : Wählen Sie im Einzahlungsmenü „Krypto-Einzahlung“.\nBetrag eingeben : Geben Sie den einzuzahlenden Betrag an.\nKryptowährung auswählen : Wählen Sie Ihre bevorzugte Kryptowährung.\nGeld überweisen : Kopieren Sie die korrekte Adresse und den Betrag und fügen Sie sie ein, um die Überweisung abzuschließen.\nBestätigen : Kehren Sie zum Backoffice zurück und warten Sie auf die Benachrichtigung über den Geldeingang per E-Mail und Backoffice-Benachrichtigungen.",
+      "Ich möchte Fiatgeld (Euro/Dollar) einzahlen": "Um Geld einzuzahlen, befolgen Sie diese Schritte:\n\nFiat-Einzahlung : Wählen Sie im Einzahlungsbereich die Option „Fiat-Einzahlung“.\nVollständige KYC-Prüfung (nur beim ersten Mal) : Bitte legen Sie einen Identitätsnachweis und ein Selfie zur schnellen Verifizierung vor.\nZahlungsmethode auswählen : Wählen Sie zwischen SEPA, SWIFT, Kreditkarten, Google Pay oder Apple Pay.\nEinzahlung abschließen : Folgen Sie den Anweisungen, um Ihre Einzahlung abzuschließen. Das Geld steht Ihnen sofort zur Verfügung."
+    }
+  },
+  "krypto einzahlung": {
+    "fragen": {
+      "Wie lauten die Schritte für eine Krypto-Einzahlung?": "Um Kryptowährungen einzuzahlen, folgen Sie diesen Schritten:\n1. Gehen Sie zum Menüpunkt 'Einzahlungen' und wählen Sie 'Krypto-Einzahlung'.\n2. Geben Sie den Betrag ein.\n3. Folgen Sie den Anweisungen zum Krypto-Gateway.\n4. Wählen Sie Ihre Kryptowährung aus.\n5. Kopieren Sie die korrekte Adresse und den Betrag.\n6. Überweisen Sie das Geld mit Ihrer Wallet.\n7. Kehren Sie zum Backoffice zurück.",
+      "Wo finde ich die Krypto-Einzahlung im Menü?": "Gehen Sie zum Menüpunkt 'Einzahlungen' und wählen Sie dort 'Krypto-Einzahlung' aus.",
+      "Wie wähle ich die Kryptowährung aus?": "Nachdem Sie auf die Seite mit dem Krypto-Gateway weitergeleitet wurden, können Sie Ihre bevorzugte Kryptowährung aus den verfügbaren Optionen auswählen.",
+      "Was muss ich bei Adresse und Betrag beachten?": "Stellen Sie unbedingt sicher, dass Sie sowohl die korrekte Adresse als auch den korrekten Betrag, wie vom Zahlungsportal angegeben, kopieren und einfügen.",
+      "Werde ich über den Geldeingang informiert?": "Ja, Sie werden im Backoffice und per E-Mail benachrichtigt, sobald Ihre Gelder eingegangen sind."
+    }
+  },
+  "fiat einzahlung": {
+    "fragen": {
+      "Wie kann ich Geld (Fiat) einzahlen?": "Um Geld einzuzahlen, befolgen Sie diese Schritte:\n\nFiat-Einzahlung: Wählen Sie im Einzahlungsbereich die Option „Fiat-Einzahlung“.\nVollständige KYC-Prüfung (nur beim ersten Mal): Bitte legen Sie einen Identitätsnachweis und ein Selfie zur schnellen Verifizierung vor.\nZahlungsmethode auswählen: Wählen Sie zwischen SEPA, SWIFT, Kreditkarten, Google Pay oder Apple Pay.\nEinzahlung abschließen: Folgen Sie den Anweisungen, um Ihre Einzahlung abzuschließen. Das Geld steht Ihnen sofort zur Verfügung.",
+      "Welche Fiat-Zahlungsmethoden stehen zur Verfügung?": "Wählen Sie zwischen SEPA, SWIFT, Kreditkarten, Google Pay oder Apple Pay.",
+      "Ist eine Verifizierung für Fiat-Einzahlungen nötig?": "Ja, bei der ersten Einzahlung ist eine vollständige KYC-Prüfung erforderlich. Bitte legen Sie einen Identitätsnachweis und ein Selfie zur schnellen Verifizierung vor.",
+      "Wann steht das Fiatgeld zur Verfügung?": "Folgen Sie den Anweisungen, um Ihre Einzahlung abzuschließen. Das Geld steht Ihnen sofort zur Verfügung."
+    }
+  },
+  "dauer": {
+    "fragen": {
+      "Wie lange dauert die Bearbeitung meiner Einzahlung?": "Die Bearbeitungszeit Ihrer Einzahlung hängt von der gewählten Zahlungsmethode ab. Bei Kryptowährungen wie ERC20-Token dauert es in der Regel bis zu 15 Minuten, bei Bitcoin (BTC) hingegen bis zu einer Stunde. Zahlungen mit Fiatwährungen wie Kreditkarte, Apple Pay, Google Pay und Cash App werden üblicherweise innerhalb von 30 Minuten verarbeitet. Bei Banküberweisungen rechnen Sie bitte mit einer Bearbeitungszeit von 1–3 Werktagen.",
+      "Wie schnell werden Kryptowährungen gutgeschrieben?": "Bei ERC20-Token dauert es in der Regel bis zu 15 Minuten, bei Bitcoin (BTC) hingegen bis zu einer Stunde.",
+      "Dauer bei Kreditkarte und mobilen Zahlungen?": "Zahlungen mit Kreditkarte, Apple Pay, Google Pay und Cash App werden üblicherweise innerhalb von 30 Minuten verarbeitet.",
+      "Wie lange dauert eine Banküberweisung?": "Bei Banküberweisungen rechnen Sie bitte mit einer Bearbeitungszeit von 1–3 Werktagen."
+    }
+  }
+}
