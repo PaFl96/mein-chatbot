@@ -30,12 +30,19 @@ def translate_text(text, target_lang='de'):
         return text
 
 def load_knowledge():
-    if os.path.exists('wissen.json'):
+    file_path = 'wissen.json'
+    if os.path.exists(file_path):
         try:
-            with open('wissen.json', 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except:
-            pass
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                print(f"Erfolg: {len(data)} Kategorien aus {file_path} geladen.")
+                return data
+        except json.JSONDecodeError as e:
+            print(f"FEHLER: Die wissen.json hat ein falsches Format (JSON-Fehler): {e}")
+        except Exception as e:
+            print(f"FEHLER beim Laden der wissen.json: {e}")
+    else:
+        print(f"FEHLER: Die Datei {file_path} wurde im Hauptverzeichnis nicht gefunden!")
     return {}
 
 async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,5 +91,6 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(handle_buttons))
 
     app.run_polling()
+
 
 
