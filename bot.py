@@ -20,7 +20,8 @@ def run_health_check():
     server.serve_forever()
 # ----------------------------------------------
 
-APP_TOKEN = "Hier API-Token einfügen"
+import os
+APP_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 
 def translate_text(text, target_lang='de'):
     try:
@@ -83,3 +84,4 @@ if __name__ == '__main__':
     app.add_handler(CallbackQueryHandler(handle_buttons))
 
     app.run_polling()
+
