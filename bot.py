@@ -1,13 +1,14 @@
 import os
 import json
 import gspread
+import threading
 from google.oauth2.service_account import Credentials
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from flask import Flask
-import threading
+from thefuzz import fuzz # Das Modul, das im Bild gefehlt hat
 
-# Flask für den Render Health Check (damit der Bot online bleibt)
+# Flask für Render Health Check
 app = Flask(__name__)
 
 @app.route('/')
@@ -22,43 +23,50 @@ def run_flask():
 def load_knowledge_from_sheet():
     try:
         scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-        # Holt den JSON-Schlüssel aus den Render-Umgebungsvariablen
+        # WICHTIG: Die Variable GOOGLE_SERVICE_ACCOUNT_JSON muss bei Render hinterlegt sein!
         service_account_info = json.loads(os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"))
         creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
         client = gspread.authorize(creds)
         
-        # HIER DEN NAMEN DEINES SHEETS ANPASSEN
+        # Name deines Sheets prüfen (Bot_Wissensdatenbank)
         sheet = client.open("Bot_Wissensdatenbank").worksheet("FAQ")
         
         records = sheet.get_all_records()
         knowledge = {}
         
         for row in records:
-            key = str(row['Schlüsselwort']).lower().strip()
-            content_raw = row['Inhalt (JSON)']
+            # Wir nehmen 'Schlüsselwort' als Schlüssel
+            key = str(row.get('Schlüsselwort', '')).lower().strip()
+            if not key: continue
+            
+            content_raw = row.get('Inhalt (JSON)', '{}')
             try:
                 knowledge[key] = json.loads(content_raw)
             except:
+                print(f"Fehler beim Parsen von JSON für: {key}")
                 continue
         return knowledge
     except Exception as e:
-        print(f"Fehler beim Laden des Sheets: {e}")
+        print(f"Großer Fehler beim Laden des Sheets: {e}")
         return {}
 
 # --- BOT LOGIK ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Wir laden das Wissen bei jedem /start frisch aus dem Sheet
     knowledge = load_knowledge_from_sheet()
-    first_page = knowledge.get("start") # Du solltest eine Zeile "start" im Sheet haben
+    # Der Bot sucht im Sheet nach einem Eintrag mit dem Schlüsselwort "start"
+    data = knowledge.get("start")
     
-    if first_page:
-        text = first_page["text"]
-        buttons = [[InlineKeyboardButton(b[0], callback_data=b[1])] for b in first_page["buttons"]]
+    if data:
+        text = data.get("text", "Willkommen!")
+        buttons = []
+        for b in data.get("buttons", []):
+            buttons.append([InlineKeyboardButton(b[0], callback_data=b[1])])
+        
         reply_markup = InlineKeyboardMarkup(buttons)
         await update.message.reply_text(text, reply_markup=reply_markup)
     else:
-        await update.message.reply_text("Willkommen! Tippe ein Thema ein oder nutze das Menü.")
+        await update.message.reply_text("Hallo! Bitte lege im Google Sheet einen Eintrag mit dem Schlüsselwort 'start' an.")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -68,22 +76,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = knowledge.get(query.data)
     
     if data:
-        text = data["text"]
-        buttons = [[InlineKeyboardButton(b[0], callback_data=b[1])] for b in data["buttons"]]
+        text = data.get("text", "Kein Text gefunden.")
+        buttons = []
+        for b in data.get("buttons", []):
+            buttons.append([InlineKeyboardButton(b[0], callback_data=b[1])])
+        
         reply_markup = InlineKeyboardMarkup(buttons)
-        await query.edit_message_text(text, reply_markup=reply_markup)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
 
 def main():
-    # Flask in einem eigenen Thread starten
+    # Flask in Hintergrund starten
     threading.Thread(target=run_flask, daemon=True).start()
 
-    # Bot starten
     token = os.environ.get("TELEGRAM_TOKEN")
     application = Application.builder().token(token).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
 
+    print("Bot startet...")
     application.run_polling()
 
 if __name__ == '__main__':
