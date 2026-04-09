@@ -1,96 +1,90 @@
+import os
 import json
-import os
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import gspread
+from google.oauth2.service_account import Credentials
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes, CallbackQueryHandler
-from thefuzz import fuzz
-from deep_translator import GoogleTranslator
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from flask import Flask
+import threading
 
-# --- DIESER TEIL IST FÜR RENDER (FREE TIER) ---
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is alive")
+# Flask für den Render Health Check (damit der Bot online bleibt)
+app = Flask(__name__)
 
-def run_health_check():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-    server.serve_forever()
-# ----------------------------------------------
+@app.route('/')
+def health_check():
+    return "Bot is alive", 200
 
-import os
-APP_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+def run_flask():
+    app.run(host='0.0.0.0', port=10000)
 
-def translate_text(text, target_lang='de'):
+# --- GOOGLE SHEETS LOGIK ---
+
+def load_knowledge_from_sheet():
     try:
-        return GoogleTranslator(source='auto', target=target_lang).translate(text)
-    except Exception:
-        return text
+        scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+        # Holt den JSON-Schlüssel aus den Render-Umgebungsvariablen
+        service_account_info = json.loads(os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON"))
+        creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
+        client = gspread.authorize(creds)
+        
+        # HIER DEN NAMEN DEINES SHEETS ANPASSEN
+        sheet = client.open("Bot_Wissensdatenbank").worksheet("FAQ")
+        
+        records = sheet.get_all_records()
+        knowledge = {}
+        
+        for row in records:
+            key = str(row['Schlüsselwort']).lower().strip()
+            content_raw = row['Inhalt (JSON)']
+            try:
+                knowledge[key] = json.loads(content_raw)
+            except:
+                continue
+        return knowledge
+    except Exception as e:
+        print(f"Fehler beim Laden des Sheets: {e}")
+        return {}
 
-def load_knowledge():
-    file_path = 'wissen.json'
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                print(f"Erfolg: {len(data)} Kategorien aus {file_path} geladen.")
-                return data
-        except json.JSONDecodeError as e:
-            print(f"FEHLER: Die wissen.json hat ein falsches Format (JSON-Fehler): {e}")
-        except Exception as e:
-            print(f"FEHLER beim Laden der wissen.json: {e}")
-    else:
-        print(f"FEHLER: Die Datei {file_path} wurde im Hauptverzeichnis nicht gefunden!")
-    return {}
+# --- BOT LOGIK ---
 
-async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    knowledge = load_knowledge()
-    user_text = update.message.text
-    text_internal = translate_text(user_text, target_lang='de').lower()
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Wir laden das Wissen bei jedem /start frisch aus dem Sheet
+    knowledge = load_knowledge_from_sheet()
+    first_page = knowledge.get("start") # Du solltest eine Zeile "start" im Sheet haben
     
-    found_key = None
-    for key in knowledge.keys():
-        if fuzz.partial_ratio(key.lower(), text_internal) > 75:
-            found_key = key
-            break
-            
-    if found_key:
-        fragen = knowledge[found_key]["fragen"]
-        buttons = [[InlineKeyboardButton(translate_text(q, target_lang='en') if user_text.lower() != text_internal else q, callback_data=q)] for q in fragen.keys()]
-        msg = "I found something:" if user_text.lower() != text_internal else "Ich habe etwas gefunden:"
-        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(buttons))
+    if first_page:
+        text = first_page["text"]
+        buttons = [[InlineKeyboardButton(b[0], callback_data=b[1])] for b in first_page["buttons"]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        await update.message.reply_text(text, reply_markup=reply_markup)
     else:
-        no_match = "Dazu habe ich leider keine Infos."
-        reply = translate_text(no_match, target_lang='en') if user_text.lower() != text_internal else no_match
-        await update.message.reply_text(reply)
+        await update.message.reply_text("Willkommen! Tippe ein Thema ein oder nutze das Menü.")
 
-async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    knowledge = load_knowledge()
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    selected_q = query.data
-    user_lang_is_en = "found" in query.message.text.lower()
     
-    answer = "Keine Antwort gefunden."
-    for cat in knowledge.values():
-        if selected_q in cat["fragen"]:
-            answer = cat["fragen"][selected_q]
-            break
+    knowledge = load_knowledge_from_sheet()
+    data = knowledge.get(query.data)
     
-    final_answer = translate_text(answer, target_lang='en') if user_lang_is_en else answer
-    await query.edit_message_text(text=f"Answer: {final_answer}" if user_lang_is_en else f"Antwort: {answer}")
+    if data:
+        text = data["text"]
+        buttons = [[InlineKeyboardButton(b[0], callback_data=b[1])] for b in data["buttons"]]
+        reply_markup = InlineKeyboardMarkup(buttons)
+        await query.edit_message_text(text, reply_markup=reply_markup)
+
+def main():
+    # Flask in einem eigenen Thread starten
+    threading.Thread(target=run_flask, daemon=True).start()
+
+    # Bot starten
+    token = os.environ.get("TELEGRAM_TOKEN")
+    application = Application.builder().token(token).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(button_handler))
+
+    application.run_polling()
 
 if __name__ == '__main__':
-    # Startet den Herzschlag-Server für Render in einem eigenen Thread
-    threading.Thread(target=run_health_check, daemon=True).start()
-    
-    app = ApplicationBuilder().token(APP_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_messages))
-    app.add_handler(CallbackQueryHandler(handle_buttons))
-
-    app.run_polling()
-
-
-
+    main()
