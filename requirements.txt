@@ -1,3 +1,4 @@
 python-telegram-bot
-thefuzz
-deep-translator
+flask
+gspread
+google-auth
