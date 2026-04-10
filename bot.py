@@ -1,3 +1,4 @@
+from langdetect import detect
 import sys
 import types
 
