@@ -1,7 +1,5 @@
 import sys
 import types
-
-# Trick: Simuliert das fehlende 'imghdr' Modul für ältere Libraries
 if 'imghdr' not in sys.modules:
     sys.modules['imghdr'] = types.ModuleType('imghdr')
 
@@ -12,15 +10,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from flask import Flask
 from thefuzz import process, fuzz
-from googletrans import Translator
+from deep_translator import GoogleTranslator  # <--- Neu!
 
-# Flask für den Render Health Check
 app = Flask(__name__)
 @app.route('/')
 def health_check(): return "OK", 200
 def run_flask(): app.run(host='0.0.0.0', port=10000)
 
-translator = Translator()
 user_languages = {}
 
 def load_knowledge():
@@ -30,11 +26,12 @@ def load_knowledge():
     except:
         return {}
 
+# Neue Übersetzungs-Funktion
 async def translate_text(text, target_lang):
     if target_lang == 'en':
         try:
-            res = translator.translate(text, src='de', dest='en')
-            return res.text
+            # Übersetzt von Deutsch nach Englisch
+            return GoogleTranslator(source='de', target='en').translate(text)
         except:
             return text
     return text
