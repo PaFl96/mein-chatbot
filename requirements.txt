@@ -3,3 +3,4 @@ flask
 thefuzz
 python-Levenshtein
 deep-translator
+langdetect
