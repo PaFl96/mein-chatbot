@@ -1,3 +1,6 @@
+import sys
+import types
+sys.modules['imghdr'] = types.ModuleType('imghdr')
 import os
 import json
 import threading
