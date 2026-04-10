@@ -1,6 +1,10 @@
 import sys
 import types
-sys.modules['imghdr'] = types.ModuleType('imghdr')
+
+# Trick: Simuliert das fehlende 'imghdr' Modul für ältere Libraries
+if 'imghdr' not in sys.modules:
+    sys.modules['imghdr'] = types.ModuleType('imghdr')
+
 import os
 import json
 import threading
@@ -10,7 +14,7 @@ from flask import Flask
 from thefuzz import process, fuzz
 from googletrans import Translator
 
-# Flask für Render
+# Flask für den Render Health Check
 app = Flask(__name__)
 @app.route('/')
 def health_check(): return "OK", 200
@@ -20,41 +24,54 @@ translator = Translator()
 user_languages = {}
 
 def load_knowledge():
-    with open('wissen.json', 'r', encoding='utf-8') as f:
-        return json.load(f)
+    try:
+        with open('wissen.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {}
 
-async def translate_if_needed(text, target_lang):
+async def translate_text(text, target_lang):
     if target_lang == 'en':
         try:
-            translated = translator.translate(text, src='de', dest='en')
-            return translated.text
+            res = translator.translate(text, src='de', dest='en')
+            return res.text
         except:
-            return text # Fallback auf Deutsch bei Fehler
+            return text
     return text
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buttons = [[InlineKeyboardButton("🇩🇪 Deutsch", callback_data="lang_de"),
                 InlineKeyboardButton("🇺🇸 English", callback_data="lang_en")]]
-    await update.message.reply_text("Bitte wähle eine Sprache / Choose a language:", 
+    await update.message.reply_text("Bitte Sprache wählen / Choose language:", 
                                    reply_markup=InlineKeyboardMarkup(buttons))
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    user_id = query.from_user.id
     await query.answer()
-    lang = query.data.split("_")[1]
-    user_languages[user_id] = lang
+    user_id = query.from_user.id
     
-    knowledge = load_knowledge()
-    buttons = []
-    
-    # Menü-Buttons übersetzen, falls Englisch gewählt
-    for kat in knowledge.keys():
-        btn_text = await translate_if_needed(kat.capitalize(), lang)
-        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"cat_{kat}")])
-    
-    welcome_text = "Wie kann ich helfen?" if lang == 'de' else "How can I help you?"
-    await query.edit_message_text(welcome_text, reply_markup=InlineKeyboardMarkup(buttons))
+    if query.data.startswith("lang_"):
+        lang = query.data.split("_")[1]
+        user_languages[user_id] = lang
+        knowledge = load_knowledge()
+        buttons = []
+        for kat in knowledge.keys():
+            txt = await translate_text(kat.capitalize(), lang)
+            buttons.append([InlineKeyboardButton(txt, callback_data=f"cat_{kat}")])
+        welcome = "Wie kann ich helfen?" if lang == 'de' else "How can I help you?"
+        await query.edit_message_text(welcome, reply_markup=InlineKeyboardMarkup(buttons))
+
+    elif query.data.startswith("cat_"):
+        lang = user_languages.get(user_id, "de")
+        cat = query.data.split("_")[1]
+        knowledge = load_knowledge()
+        kat_data = knowledge.get(cat, {})
+        buttons = []
+        for frage in kat_data.get("fragen", {}).keys():
+            txt = await translate_text(frage, lang)
+            buttons.append([InlineKeyboardButton(txt, callback_data=f"ans_{cat}_{frage[:15]}")] )
+        buttons.append([InlineKeyboardButton("🔙 Back", callback_data=f"lang_{lang}")])
+        await query.edit_message_text("Fragen:", reply_markup=InlineKeyboardMarkup(buttons))
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
@@ -62,34 +79,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     knowledge = load_knowledge()
     
-    # Alle Fragen aus dem deutschen JSON sammeln
-    all_questions = {}
-    for cat in knowledge.values():
-        for frage, antwort in cat["fragen"].items():
-            all_questions[frage] = antwort
+    all_data = {}
+    for kat_val in knowledge.values():
+        for f, a in kat_val.get("fragen", {}).items():
+            all_data[f] = a
             
-    # Suche mit thefuzz (auf Deutsch, da JSON deutsch ist)
-    # Falls User Englisch schreibt, übersetzen wir die Frage kurz intern auf Deutsch für die Suche
     search_query = user_text
     if lang == 'en':
         try: search_query = translator.translate(user_text, src='en', dest='de').text
         except: pass
 
-    best_match, score = process.extractOne(search_query, all_questions.keys(), scorer=fuzz.token_set_ratio)
+    best_match, score = process.extractOne(search_query, all_data.keys(), scorer=fuzz.token_set_ratio)
     
-    if score > 60:
-        antwort = all_questions[best_match]
-        final_text = await translate_if_needed(antwort, lang)
-        await update.message.reply_text(final_text)
+    if score > 65:
+        antwort = all_data[best_match]
+        final_msg = await translate_text(antwort, lang)
+        await update.message.reply_text(final_msg)
     else:
-        fail_msg = "Das habe ich nicht verstanden." if lang == 'de' else "I didn't understand that."
-        await update.message.reply_text(fail_msg)
+        fail = "Das habe ich leider nicht verstanden." if lang == 'de' else "I didn't understand that."
+        await update.message.reply_text(fail)
 
 if __name__ == '__main__':
     threading.Thread(target=run_flask, daemon=True).start()
     token = os.environ.get("TELEGRAM_TOKEN")
-    application = Application.builder().token(token).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(handle_callback))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.run_polling()
+    if token:
+        app_bot = Application.builder().token(token).build()
+        app_bot.add_handler(CommandHandler("start", start))
+        app_bot.add_handler(CallbackQueryHandler(handle_callback))
+        app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        print("Bot startet erfolgreich...")
+        app_bot.run_polling()
