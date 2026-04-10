@@ -98,33 +98,46 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 break
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Verarbeitet freie Textanfragen mit thefuzz"""
     user_id = update.message.from_user.id
-    lang = user_languages.get(user_id, "de")
     user_text = update.message.text
     knowledge = load_knowledge()
     
-    # Alle deutschen Fragen sammeln
+    # Automatische Spracherkennung, falls keine Sprache im Speicher ist
+    if user_id not in user_languages:
+        try:
+            detected_lang = detect(user_text)
+            # Wenn Englisch erkannt wird, setze auf 'en', sonst 'de'
+            user_languages[user_id] = 'en' if detected_lang == 'en' else 'de'
+            print(f"Sprache für User {user_id} automatisch auf {user_languages[user_id]} gesetzt.")
+        except:
+            user_languages[user_id] = 'de' 
+
+    lang = user_languages.get(user_id, "de")
+    
+    # Alle deutschen Fragen aus der wissen.json sammeln
     all_questions = {}
     for cat_val in knowledge.values():
         for f, a in cat_val.get("fragen", {}).items():
             all_questions[f] = a
             
-    # Falls Englisch: Frage erst auf Deutsch übersetzen für die Suche
     search_query = user_text
+    # Falls die Sprache des Nutzers Englisch ist, übersetze die Frage für die Suche ins Deutsche
     if lang == 'en':
         try:
             search_query = GoogleTranslator(source='en', target='de').translate(user_text)
-        except: pass
+        except: 
+            pass
 
-    # Suche mit thefuzz
+    # Ähnlichkeitssuche mit thefuzz
     best_match, score = process.extractOne(search_query, all_questions.keys(), scorer=fuzz.token_set_ratio)
     
     if score > 65:
         antwort = all_questions[best_match]
+        # Antwort bei Bedarf live ins Englische übersetzen
         final_msg = translate_text(antwort, lang)
         await update.message.reply_text(final_msg)
     else:
+        # Fehlermeldung in der richtigen Sprache
         fail = "Das habe ich leider nicht verstanden." if lang == 'de' else "I didn't understand that."
         await update.message.reply_text(fail)
 
